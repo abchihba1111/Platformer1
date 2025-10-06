@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: 904a0dde60f92c140b09d0d6bb9e0f2c
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - menuPanel: {instanceID: 0}
+  - settingsPanel: {instanceID: 0}
+  - playButton: {instanceID: 0}
+  - settingsButton: {instanceID: 0}
+  - exitButton: {instanceID: 0}
+  - closeSettingsButton: {instanceID: 0}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
