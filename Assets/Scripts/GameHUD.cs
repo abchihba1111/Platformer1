@@ -1,6 +1,8 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TMPro;
 using System.Collections.Generic;
+using UnityEngine.EventSystems;
 
 public class GameHUDManager : MonoBehaviour
 {
@@ -15,59 +17,84 @@ public class GameHUDManager : MonoBehaviour
     public int collectedCoins = 0;
 
     [Header("UI Panels")]
-    public GameObject healthPanel;    // Панель здоровья
-    public GameObject coinsPanel;     // Панель монет
+    public GameObject healthPanel;
+    public GameObject coinsPanel;
+
+    [Header("Scene Settings")]
+    public string mainMenuScene = "MainMenu";
 
     void Start()
     {
+        CheckEventSystem();
+
+        // Автоматически находим все UI элементы
+        FindUIElementsAutomatically();
+
         // Автоматически находим сердечки если массив пустой
         if (hearts == null || hearts.Length == 0)
         {
             FindHeartsAutomatically();
         }
 
-        // Инициализация здоровья
+        SortHeartsByPosition();
+
+        // Инициализация
         currentHealth = maxHealth;
         UpdateHealthDisplay();
-
-        // Инициализация счетчика монет
         UpdateCoinCounter();
 
-        // Скрываем HUD в начале (будет показан когда начнется игра)
-        SetHUDVisible(false);
-
-        Debug.Log("Game HUD initialized");
+        Debug.Log("Game HUD initialized in game scene");
+        Debug.Log($"Health: {currentHealth}, Coins: {collectedCoins}");
     }
 
-    void Update()
+    void CheckEventSystem()
     {
-        // Обработка клавиши Escape - возврат в главное меню
-        if (Input.GetKeyDown(KeyCode.Escape))
+        EventSystem eventSystem = FindObjectOfType<EventSystem>();
+        if (eventSystem == null)
         {
-            ReturnToMainMenu();
-        }
-
-        // Тестирование: нажмите H для проверки здоровья
-        if (Input.GetKeyDown(KeyCode.H))
-        {
-            Debug.Log("=== MANUAL HEALTH TEST ===");
-            LoseHealth();
-        }
-
-        // Тестирование: нажмите R для восстановления здоровья
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            ResetGame();
-            Debug.Log("Game reset");
+            Debug.Log("Creating EventSystem...");
+            GameObject eventSystemObj = new GameObject("EventSystem");
+            eventSystemObj.AddComponent<EventSystem>();
+            eventSystemObj.AddComponent<StandaloneInputModule>();
         }
     }
 
-    // Включает/выключает отображение HUD
-    public void SetHUDVisible(bool visible)
+    void SortHeartsByPosition()
     {
-        if (healthPanel != null) healthPanel.SetActive(visible);
-        if (coinsPanel != null) coinsPanel.SetActive(visible);
-        Debug.Log($"HUD visible: {visible}");
+        if (hearts == null || hearts.Length == 0) return;
+
+        // Сортируем сердечки по позиции X (слева направо)
+        List<TextMeshProUGUI> sortedHearts = new List<TextMeshProUGUI>(hearts);
+        sortedHearts.Sort((a, b) => a.rectTransform.anchoredPosition.x.CompareTo(b.rectTransform.anchoredPosition.x));
+
+        hearts = sortedHearts.ToArray();
+
+        Debug.Log("Hearts sorted by position:");
+        for (int i = 0; i < hearts.Length; i++)
+        {
+            if (hearts[i] != null)
+            {
+                Debug.Log($"Heart {i}: {hearts[i].name} (X: {hearts[i].rectTransform.anchoredPosition.x})");
+            }
+        }
+    }
+
+    void FindUIElementsAutomatically()
+    {
+        // Находим панели
+        if (healthPanel == null)
+            healthPanel = GameObject.Find("HealthPanel");
+        if (coinsPanel == null)
+            coinsPanel = GameObject.Find("CoinsPanel");
+
+        // Находим счетчик монет
+        if (coinCounter == null)
+        {
+            GameObject coinCounterObj = GameObject.Find("CoinCounter");
+            if (coinCounterObj != null) coinCounter = coinCounterObj.GetComponent<TextMeshProUGUI>();
+        }
+
+        Debug.Log("Game HUD UI elements auto-found");
     }
 
     void FindHeartsAutomatically()
@@ -95,9 +122,40 @@ public class GameHUDManager : MonoBehaviour
         }
     }
 
+    void Update()
+    {
+        // Обработка клавиши Escape - возврат в главное меню
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            Debug.Log("ESC KEY PRESSED!");
+            ReturnToMainMenu();
+        }
+
+        // Тестирование: нажмите H для проверки здоровья
+        if (Input.GetKeyDown(KeyCode.H))
+        {
+            Debug.Log("=== MANUAL HEALTH TEST ===");
+            LoseHealth();
+        }
+
+        // Тестирование: нажмите R для восстановления здоровья
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            ResetGame();
+            Debug.Log("Game reset");
+        }
+
+        // Принудительный возврат в меню (тестирование)
+        if (Input.GetKeyDown(KeyCode.M))
+        {
+            Debug.Log("=== FORCED MENU RETURN ===");
+            ReturnToMainMenu();
+        }
+    }
+
     public void PlayerFell()
     {
-        Debug.Log("PlayerFell() called");
+        Debug.Log("PlayerFell() called from DeathZone");
         LoseHealth();
     }
 
@@ -112,8 +170,13 @@ public class GameHUDManager : MonoBehaviour
 
             if (currentHealth <= 0)
             {
+                Debug.Log("HEALTH REACHED ZERO - GAME OVER!");
                 GameOver();
             }
+        }
+        else
+        {
+            Debug.Log("Health already at zero!");
         }
     }
 
@@ -125,11 +188,15 @@ public class GameHUDManager : MonoBehaviour
             return;
         }
 
+        Debug.Log($"Updating health display: {currentHealth} hearts");
+
         for (int i = 0; i < hearts.Length; i++)
         {
             if (hearts[i] != null)
             {
-                hearts[i].gameObject.SetActive(i < currentHealth);
+                bool isActive = i < currentHealth;
+                hearts[i].gameObject.SetActive(isActive);
+                Debug.Log($"Heart {i}: {(isActive ? "ACTIVE" : "HIDDEN")}");
             }
         }
 
@@ -157,11 +224,15 @@ public class GameHUDManager : MonoBehaviour
         {
             coinCounter.text = $"Монеты: {collectedCoins} / {totalCoins}";
         }
+        else
+        {
+            Debug.LogError("CoinCounter is null!");
+        }
     }
 
     void GameOver()
     {
-        Debug.Log("Game Over! Returning to main menu...");
+        Debug.Log("=== GAME OVER - RETURNING TO MAIN MENU ===");
         ReturnToMainMenu();
     }
 
@@ -170,20 +241,18 @@ public class GameHUDManager : MonoBehaviour
         Debug.Log("Level Complete! All coins collected!");
     }
 
-    // Метод для возврата в главное меню по Escape
     public void ReturnToMainMenu()
     {
-        Debug.Log("Returning to Main Menu (Escape pressed)");
+        Debug.Log("RETURNING TO MAIN MENU...");
 
-        // Находим MainMenuController и переключаем на меню
-        MainMenuController menuController = FindObjectOfType<MainMenuController>();
-        if (menuController != null)
+        if (!string.IsNullOrEmpty(mainMenuScene))
         {
-            menuController.ShowMainMenu();
+            Debug.Log($"Loading scene: {mainMenuScene}");
+            SceneManager.LoadScene(mainMenuScene);
         }
         else
         {
-            Debug.LogError("MainMenuController not found!");
+            Debug.LogError("Main menu scene name is not set!");
         }
     }
 
@@ -194,7 +263,6 @@ public class GameHUDManager : MonoBehaviour
         UpdateHealthDisplay();
         UpdateCoinCounter();
 
-        // Сброс позиции игрока
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player != null)
         {
@@ -202,19 +270,25 @@ public class GameHUDManager : MonoBehaviour
             if (spawnPoint != null)
             {
                 player.transform.position = spawnPoint.transform.position;
+                Debug.Log("Player respawned at spawn point");
             }
             else
             {
                 player.transform.position = Vector3.zero;
+                Debug.Log("Player respawned at zero position");
             }
 
-            // Сброс физики
             Rigidbody rb = player.GetComponent<Rigidbody>();
             if (rb != null)
             {
                 rb.linearVelocity = Vector3.zero;
                 rb.angularVelocity = Vector3.zero;
+                Debug.Log("Player physics reset");
             }
+        }
+        else
+        {
+            Debug.LogWarning("Player not found for reset!");
         }
     }
 }

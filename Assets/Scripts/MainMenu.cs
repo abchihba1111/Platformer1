@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class MainMenuController : MonoBehaviour
 {
@@ -13,20 +14,50 @@ public class MainMenuController : MonoBehaviour
     public Button exitButton;
     public Button closeSettingsButton;
 
-    [Header("Cameras")]
-    public Camera menuCamera;
-    public Camera gameCamera;
-    public Camera settingsCamera;
-
-    [Header("Game Objects")]
-    public GameObject playerObject;
-    public GameHUDManager gameHUD; // Ссылка на HUD менеджер
+    [Header("Scene Settings")]
+    public string gameSceneName = "GameScene";
 
     void Start()
     {
+        // Автоматически находим UI элементы если не назначены
+        FindUIElementsAutomatically();
+
         // Начальное состояние - показываем меню
         ShowMainMenu();
         SetupButtons();
+    }
+
+    void FindUIElementsAutomatically()
+    {
+        // Находим панели
+        if (mainMenuPanel == null)
+            mainMenuPanel = GameObject.Find("MainMenuPanel");
+        if (settingsPanel == null)
+            settingsPanel = GameObject.Find("SettingsPanel");
+
+        // Находим кнопки
+        if (playButton == null)
+        {
+            GameObject playObj = GameObject.Find("PlayButton");
+            if (playObj != null) playButton = playObj.GetComponent<Button>();
+        }
+        if (settingsButton == null)
+        {
+            GameObject settingsObj = GameObject.Find("SettingsButton");
+            if (settingsObj != null) settingsButton = settingsObj.GetComponent<Button>();
+        }
+        if (exitButton == null)
+        {
+            GameObject exitObj = GameObject.Find("ExitButton");
+            if (exitObj != null) exitButton = exitObj.GetComponent<Button>();
+        }
+        if (closeSettingsButton == null)
+        {
+            GameObject closeObj = GameObject.Find("CloseButton");
+            if (closeObj != null) closeSettingsButton = closeObj.GetComponent<Button>();
+        }
+
+        Debug.Log("MainMenu UI elements auto-found");
     }
 
     void SetupButtons()
@@ -37,89 +68,34 @@ public class MainMenuController : MonoBehaviour
         if (closeSettingsButton != null) closeSettingsButton.onClick.AddListener(CloseSettings);
     }
 
-    public void ShowMainMenu()
+    void ShowMainMenu()
     {
         Debug.Log("Showing Main Menu");
 
-        // UI Панели
         if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
         if (settingsPanel != null) settingsPanel.SetActive(false);
-
-        // Камеры
-        SetCameraActive(menuCamera, true);
-        SetCameraActive(gameCamera, false);
-        SetCameraActive(settingsCamera, false);
-
-        // Игровые объекты
-        if (playerObject != null) playerObject.SetActive(false);
-
-        // Скрываем игровой HUD
-        if (gameHUD != null) gameHUD.SetHUDVisible(false);
-    }
-
-    void ShowGame()
-    {
-        Debug.Log("Showing Game");
-
-        // UI Панели
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-        if (settingsPanel != null) settingsPanel.SetActive(false);
-
-        // Камеры
-        SetCameraActive(menuCamera, false);
-        SetCameraActive(gameCamera, true);
-        SetCameraActive(settingsCamera, false);
-
-        // Игровые объекты
-        if (playerObject != null) playerObject.SetActive(true);
-
-        // Показываем игровой HUD и сбрасываем игру
-        if (gameHUD != null)
-        {
-            gameHUD.SetHUDVisible(true);
-            gameHUD.ResetGame();
-        }
-    }
-
-    void ShowSettings()
-    {
-        Debug.Log("Showing Settings");
-
-        // UI Панели
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-        if (settingsPanel != null) settingsPanel.SetActive(true);
-
-        // Камеры
-        SetCameraActive(menuCamera, false);
-        SetCameraActive(gameCamera, false);
-        SetCameraActive(settingsCamera, true);
-
-        // Игровые объекты
-        if (playerObject != null) playerObject.SetActive(false);
-
-        // Скрываем игровой HUD
-        if (gameHUD != null) gameHUD.SetHUDVisible(false);
-    }
-
-    void SetCameraActive(Camera camera, bool active)
-    {
-        if (camera != null)
-        {
-            camera.gameObject.SetActive(active);
-            camera.enabled = active;
-        }
     }
 
     public void PlayGame()
     {
-        Debug.Log("Play Game button clicked");
-        ShowGame();
+        Debug.Log("Play Game button clicked - Loading: " + gameSceneName);
+
+        if (!string.IsNullOrEmpty(gameSceneName))
+        {
+            SceneManager.LoadScene(gameSceneName);
+        }
+        else
+        {
+            Debug.LogError("Game scene name is not set!");
+        }
     }
 
     public void OpenSettings()
     {
         Debug.Log("Settings button clicked");
-        ShowSettings();
+
+        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (settingsPanel != null) settingsPanel.SetActive(true);
     }
 
     public void CloseSettings()
