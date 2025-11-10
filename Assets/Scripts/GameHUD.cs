@@ -23,6 +23,12 @@ public class GameHUDManager : MonoBehaviour
     [Header("Scene Settings")]
     public string mainMenuScene = "MainMenu";
 
+    [Header("Character Switching")]
+    public GameObject[] players; // Массив персонажей
+    public Camera[] playerCameras; // Массив камер для каждого персонажа
+    public int currentPlayerIndex = 0;
+    public KeyCode switchKey = KeyCode.P;
+
     void Start()
     {
         CheckEventSystem();
@@ -38,13 +44,143 @@ public class GameHUDManager : MonoBehaviour
 
         SortHeartsByPosition();
 
+        // Автоматически находим персонажей если не назначены
+        if (players == null || players.Length == 0)
+        {
+            FindAllPlayers();
+        }
+
+        // Автоматически находим камеры если не назначены
+        if (playerCameras == null || playerCameras.Length == 0)
+        {
+            FindAllCameras();
+        }
+
+        // Активируем первого персонажа
+        SwitchToPlayer(currentPlayerIndex);
+
         // Инициализация
         currentHealth = maxHealth;
         UpdateHealthDisplay();
         UpdateCoinCounter();
 
         Debug.Log("Game HUD initialized in game scene");
-        Debug.Log($"Health: {currentHealth}, Coins: {collectedCoins}");
+        Debug.Log($"Health: {currentHealth}, Coins: {collectedCoins}, Players: {players.Length}");
+    }
+
+    void FindAllPlayers()
+    {
+        // Ищем всех персонажей с тегом Player
+        GameObject[] foundPlayers = GameObject.FindGameObjectsWithTag("Player");
+        if (foundPlayers.Length > 0)
+        {
+            players = foundPlayers;
+            Debug.Log("Found players: " + players.Length);
+        }
+        else
+        {
+            Debug.LogError("No players found with tag 'Player'!");
+        }
+    }
+
+    void FindAllCameras()
+    {
+        // Ищем все камеры в сцене
+        Camera[] allCameras = FindObjectsOfType<Camera>();
+        List<Camera> playerCameraList = new List<Camera>();
+
+        foreach (Camera cam in allCameras)
+        {
+            if (cam.CompareTag("MainCamera") || cam.name.Contains("PlayerCamera") || cam.name.Contains("Camera"))
+            {
+                playerCameraList.Add(cam);
+            }
+        }
+
+        if (playerCameraList.Count > 0)
+        {
+            playerCameras = playerCameraList.ToArray();
+            Debug.Log("Found cameras: " + playerCameras.Length);
+        }
+        else
+        {
+            Debug.LogWarning("No specific cameras found, using all cameras");
+            playerCameras = allCameras;
+        }
+    }
+
+    void SwitchToPlayer(int playerIndex)
+    {
+        if (players == null || players.Length == 0) return;
+
+        // Деактивируем всех персонажей
+        for (int i = 0; i < players.Length; i++)
+        {
+            if (players[i] != null)
+            {
+                SetPlayerActive(players[i], false);
+            }
+        }
+
+        // Деактивируем все камеры
+        for (int i = 0; i < playerCameras.Length; i++)
+        {
+            if (playerCameras[i] != null)
+            {
+                playerCameras[i].gameObject.SetActive(false);
+            }
+        }
+
+        // Активируем выбранного персонажа и его камеру
+        currentPlayerIndex = playerIndex;
+
+        if (players[currentPlayerIndex] != null)
+        {
+            SetPlayerActive(players[currentPlayerIndex], true);
+            Debug.Log("Switched to player: " + players[currentPlayerIndex].name);
+        }
+
+        // Активируем соответствующую камеру
+        if (playerCameras.Length > currentPlayerIndex && playerCameras[currentPlayerIndex] != null)
+        {
+            playerCameras[currentPlayerIndex].gameObject.SetActive(true);
+            Debug.Log("Switched to camera: " + playerCameras[currentPlayerIndex].name);
+        }
+        else if (playerCameras.Length > 0 && playerCameras[0] != null)
+        {
+            // Если нет отдельной камеры для этого персонажа, используем первую
+            playerCameras[0].gameObject.SetActive(true);
+        }
+    }
+
+    void SetPlayerActive(GameObject player, bool active)
+    {
+        // Включаем/выключаем компоненты управления
+        MonoBehaviour[] components = player.GetComponents<MonoBehaviour>();
+        foreach (MonoBehaviour component in components)
+        {
+            if (component != null && component != this)
+            {
+                // Пропускаем трансформы и другие не-скриптовые компоненты
+                if (component.GetType() != typeof(Transform))
+                {
+                    component.enabled = active;
+                }
+            }
+        }
+
+        // Включаем/выключаем Rigidbody если есть
+        Rigidbody rb = player.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            rb.isKinematic = !active;
+        }
+
+        Rigidbody2D rb2D = player.GetComponent<Rigidbody2D>();
+        if (rb2D != null)
+        {
+            rb2D.simulated = active;
+        }
     }
 
     void CheckEventSystem()
@@ -63,10 +199,8 @@ public class GameHUDManager : MonoBehaviour
     {
         if (hearts == null || hearts.Length == 0) return;
 
-        // Сортируем сердечки по позиции X (слева направо)
         List<TextMeshProUGUI> sortedHearts = new List<TextMeshProUGUI>(hearts);
         sortedHearts.Sort((a, b) => a.rectTransform.anchoredPosition.x.CompareTo(b.rectTransform.anchoredPosition.x));
-
         hearts = sortedHearts.ToArray();
 
         Debug.Log("Hearts sorted by position:");
@@ -81,13 +215,11 @@ public class GameHUDManager : MonoBehaviour
 
     void FindUIElementsAutomatically()
     {
-        // Находим панели
         if (healthPanel == null)
             healthPanel = GameObject.Find("HealthPanel");
         if (coinsPanel == null)
             coinsPanel = GameObject.Find("CoinsPanel");
 
-        // Находим счетчик монет
         if (coinCounter == null)
         {
             GameObject coinCounterObj = GameObject.Find("CoinCounter");
@@ -129,6 +261,13 @@ public class GameHUDManager : MonoBehaviour
         {
             Debug.Log("ESC KEY PRESSED!");
             ReturnToMainMenu();
+        }
+
+        // Переключение персонажей по клавише P
+        if (Input.GetKeyDown(switchKey) && players != null && players.Length > 1)
+        {
+            int nextIndex = (currentPlayerIndex + 1) % players.Length;
+            SwitchToPlayer(nextIndex);
         }
 
         // Тестирование: нажмите H для проверки здоровья
@@ -263,9 +402,10 @@ public class GameHUDManager : MonoBehaviour
         UpdateHealthDisplay();
         UpdateCoinCounter();
 
-        GameObject player = GameObject.FindGameObjectWithTag("Player");
-        if (player != null)
+        // Сбрасываем позицию активного игрока
+        if (players != null && players.Length > currentPlayerIndex && players[currentPlayerIndex] != null)
         {
+            GameObject player = players[currentPlayerIndex];
             GameObject spawnPoint = GameObject.FindGameObjectWithTag("Respawn");
             if (spawnPoint != null)
             {
