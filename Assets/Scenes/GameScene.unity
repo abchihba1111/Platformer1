@@ -244,13 +244,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ff4b721911640bc43b776dbaa4f3475a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterSwitcher
-  characters:
-  - {fileID: 1391496425}
-  - {fileID: 1723727194}
-  currentCharacterIndex: 0
-  switchKey: 112
-  enableCameraFollow: 0
-  mainCamera: {fileID: 0}
 --- !u!1 &74206276
 GameObject:
   m_ObjectHideFlags: 0
